@@ -14,6 +14,15 @@ public class Students {
     @Column(nullable = false)
     private String fullName;
 
+    public enum FormOfStudy { BUDGET, CONTRACT }
+    public enum StudentStatus { ACTIVE, DROPPED }
+
+    @Enumerated(EnumType.STRING)
+    private FormOfStudy formOfStudy;
+
+    @Enumerated(EnumType.STRING)
+    private StudentStatus status;
+
     @ManyToOne
     @JoinColumn(name = "group_id")
     private Group group;

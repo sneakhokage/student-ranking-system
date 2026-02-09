@@ -19,5 +19,11 @@ public class Grades {
     @JoinColumn(name = "subject_id")
     private Subjects subject;
 
+    @ManyToOne @JoinColumn(name = "semester_id")
+    private Semester semester;
+
+    private Integer attempt;
+    private java.time.LocalDate dateEntered;
+
     private int score;
 }
