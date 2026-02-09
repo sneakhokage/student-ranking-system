@@ -12,5 +12,11 @@ public class Group {
     private Long id;
 
     private String name;
+
+    @Column(name = "year_of_study")
     private int year;
+
+    @ManyToOne
+    @JoinColumn(name = "specialty_id")
+    private Specialty specialty;
 }
