@@ -11,9 +11,7 @@ import {
   GraduationCap, LayoutDashboard, LogIn, LogOut, Lock, Mail, User 
 } from 'lucide-react';
 
-import { fetchTopStudents, fetchStudentDashboard } from './api';
-
-// --- UI COMPONENTS ---
+import { fetchTopStudents, fetchStudentDashboard, fetchFaculties, fetchSemesters, fetchStudentsList } from './api';
 
 const Card = ({ children, className, delay = 0 }) => (
   <motion.div 
@@ -38,7 +36,6 @@ const StatBox = ({ label, value, icon: Icon, color }) => (
   </div>
 );
 
-// --- НОВА СТОРІНКА ВХОДУ (LOGIN FORM) ---
 const Login = ({ onLogin }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -57,11 +54,8 @@ const Login = ({ onLogin }) => {
 
     setLoading(true);
 
-    // ІМІТАЦІЯ ЗАПИТУ НА СЕРВЕР (1 секунда затримки)
     setTimeout(() => {
       setLoading(false);
-      
-      // Логіка для демо: якщо пошта містить "alex", заходимо як студент №2, інакше як №1
       const userId = email.toLowerCase().includes('alex') ? "2" : "1";
       
       onLogin(userId);
@@ -139,9 +133,23 @@ const Login = ({ onLogin }) => {
   );
 };
 
-// --- ДАШБОРД ---
-const Dashboard = ({ studentId }) => {
+const Dashboard = ({ studentId, onSelectStudent }) => {
   const [data, setData] = useState(null);
+  const [students, setStudents] = useState([]);
+
+  useEffect(() => {
+    fetchStudentsList({ groupPrefix: 'ІПЗ-' }).then(setStudents);
+  }, []);
+
+  useEffect(() => {
+    if (students.length === 0) {
+      return;
+    }
+    const currentExists = students.some((s) => String(s.id) === String(studentId));
+    if (!studentId || !currentExists) {
+      onSelectStudent(String(students[0].id));
+    }
+  }, [students, studentId, onSelectStudent]);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,7 +168,6 @@ const Dashboard = ({ studentId }) => {
     };
   }, [studentId]);
 
-  // Фіксовані кольори для світлої теми
   const chartColors = {
     text: '#64748b',
     grid: '#e2e8f0',
@@ -172,7 +179,6 @@ const Dashboard = ({ studentId }) => {
 
   return (
     <div className="space-y-8">
-       {/* HEADER */}
        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-2">
@@ -180,12 +186,24 @@ const Dashboard = ({ studentId }) => {
             </h1>
             <p className="text-slate-500 font-medium">Ось твоя аналітика за поточний семестр</p>
           </div>
-          <div className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-full text-sm font-bold shadow-lg flex items-center gap-2">
-             <Award size={16} /> {data.cluster}
+          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+            <select
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm min-w-[260px]"
+              value={String(studentId)}
+              onChange={(e) => onSelectStudent(e.target.value)}
+            >
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.fullName} ({s.groupName || 'N/A'})
+                </option>
+              ))}
+            </select>
+            <div className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-full text-sm font-bold shadow-lg flex items-center gap-2">
+               <Award size={16} /> {data.cluster}
+            </div>
           </div>
         </header>
 
-      {/* KPI GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card delay={0.1}><StatBox label="Середній бал" value={data.gpa} icon={Activity} color="bg-blue-500" /></Card>
         <Card delay={0.2}><StatBox label="Рейтинг" value={`#${data.ranking.stream}`} icon={TrendingUp} color="bg-emerald-500" /></Card>
@@ -207,7 +225,6 @@ const Dashboard = ({ studentId }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* ПОРІВНЯЛЬНИЙ ГРАФІК */}
         <Card className="col-span-1 lg:col-span-2 h-96" delay={0.5}>
           <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2">
             <TrendingUp size={20} className="text-indigo-600"/> Порівняння: Ти vs Група
@@ -224,7 +241,6 @@ const Dashboard = ({ studentId }) => {
           </ResponsiveContainer>
         </Card>
 
-        {/* RADAR CHART */}
         <Card className="h-96 flex flex-col items-center justify-center relative bg-gradient-to-b from-white to-indigo-50/30" delay={0.6}>
           <h3 className="absolute top-6 left-6 text-lg font-bold text-slate-700">Компетенції</h3>
           <ResponsiveContainer width="100%" height="100%">
@@ -238,7 +254,6 @@ const Dashboard = ({ studentId }) => {
         </Card>
       </div>
       
-      {/* ГРАФІК ДИНАМІКИ */}
       <Card className="h-80" delay={0.65}>
          <h3 className="text-lg font-bold text-slate-700 mb-6">Динаміка успішності</h3>
          <ResponsiveContainer width="100%" height="85%">
@@ -252,7 +267,6 @@ const Dashboard = ({ studentId }) => {
          </ResponsiveContainer>
       </Card>
 
-      {/* ТАБЛИЦЯ ПРЕДМЕТІВ */}
       <Card delay={0.7} className="overflow-hidden">
         <h3 className="text-lg font-bold text-slate-700 mb-4">Предмети та оцінки</h3>
         <div className="overflow-x-auto">
@@ -289,42 +303,139 @@ const Dashboard = ({ studentId }) => {
   );
 };
 
-// --- РЕЙТИНГ ---
 const Ranking = () => {
   const [list, setList] = useState([]);
+  const [faculties, setFaculties] = useState([]);
+  const [semesters, setSemesters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scope, setScope] = useState('STREAM');
+  const [sortBy, setSortBy] = useState('PERFORMANCE');
+  const [direction, setDirection] = useState('DESC');
+  const [formOfStudy, setFormOfStudy] = useState('');
+  const [debtFilter, setDebtFilter] = useState('ALL');
+  const [semesterId, setSemesterId] = useState('SEM1');
+  const [facultyId, setFacultyId] = useState('');
+  const [limit, setLimit] = useState('1000');
 
   useEffect(() => {
-    fetchTopStudents().then(data => {
-      setList(data);
-      setLoading(false);
+    fetchFaculties().then(setFaculties);
+    fetchSemesters().then((items) => {
+      setSemesters(items);
+      if (items.length > 0) {
+        setSemesterId(items[0].id);
+      }
     });
   }, []);
 
+  useEffect(() => {
+    if (scope === 'FACULTY' && facultyId === '') {
+      setList([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    fetchTopStudents({
+      semesterId,
+      scope,
+      facultyId: facultyId === '' ? null : Number(facultyId),
+      formOfStudy: formOfStudy || null,
+      debtFilter,
+      sortBy,
+      direction,
+      limit: limit === 'ALL' ? 5000 : Number(limit),
+    }).then((data) => {
+      setList(data);
+      setLoading(false);
+    });
+  }, [semesterId, scope, facultyId, formOfStudy, debtFilter, sortBy, direction, limit]);
+
   return (
     <Card>
-      <h2 className="text-2xl font-bold text-slate-800 mb-6">Рейтинг потоку</h2>
+      <h2 className="text-2xl font-bold text-slate-800 mb-4">Рейтинг</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-8 gap-3 mb-6">
+        <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={scope} onChange={(e) => setScope(e.target.value)}>
+          <option value="STREAM">Потік</option>
+          <option value="FACULTY">Факультет</option>
+          <option value="UNIVERSITY">Університет</option>
+        </select>
+        <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={semesterId} onChange={(e) => setSemesterId(e.target.value)}>
+          {semesters.map((s) => (
+            <option key={s.id} value={s.id}>{s.name || s.id}</option>
+          ))}
+          {semesters.length === 0 && <option value="SEM1">SEM1</option>}
+        </select>
+        <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="PERFORMANCE">За успішністю</option>
+          <option value="ALPHABET">За алфавітом</option>
+          <option value="GROUP">За групою</option>
+        </select>
+        <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={direction} onChange={(e) => setDirection(e.target.value)}>
+          <option value="DESC">Спадання</option>
+          <option value="ASC">Зростання</option>
+        </select>
+        <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={formOfStudy} onChange={(e) => setFormOfStudy(e.target.value)}>
+          <option value="">Форма навчання: всі</option>
+          <option value="BUDGET">Бюджет</option>
+          <option value="CONTRACT">Контракт</option>
+        </select>
+        <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={debtFilter} onChange={(e) => setDebtFilter(e.target.value)}>
+          <option value="ALL">Борги: всі</option>
+          <option value="WITH_DEBTS">Тільки боржники</option>
+          <option value="WITHOUT_DEBTS">Тільки без боргів</option>
+        </select>
+        <select
+          className="rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100"
+          value={facultyId}
+          onChange={(e) => setFacultyId(e.target.value)}
+          disabled={scope !== 'FACULTY'}
+        >
+          <option value="">Факультет</option>
+          {faculties.map((f) => (
+            <option key={f.id} value={f.id}>{f.name}</option>
+          ))}
+        </select>
+        <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={limit} onChange={(e) => setLimit(e.target.value)}>
+          <option value="200">Ліміт: 200</option>
+          <option value="500">Ліміт: 500</option>
+          <option value="1000">Ліміт: 1000</option>
+          <option value="ALL">Ліміт: всі</option>
+        </select>
+      </div>
       <div className="overflow-x-auto rounded-xl border border-slate-100">
-        <table className="w-full text-left min-w-[500px]">
+        <table className="w-full text-left min-w-[700px]">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
             <tr>
               <th className="p-4">#</th>
               <th className="p-4">Студент</th>
               <th className="p-4">Група</th>
+              <th className="p-4">Форма</th>
+              <th className="p-4">Факультет</th>
               <th className="p-4 text-right">Бал</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
-            {list.map((s, i) => (
-              <tr key={i} className="hover:bg-indigo-50/50 transition-colors">
+            {list.map((s, i) => {
+              const isRisk = Number(s.debtCount || 0) > 0;
+              return (
+              <tr
+                key={s.studentId || i}
+                className={`${isRisk ? 'bg-rose-50 hover:bg-rose-100/60' : 'hover:bg-indigo-50/50'} transition-colors`}
+              >
                 <td className="p-4 font-bold text-slate-400">
                   {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
                 </td>
-                <td className="p-4 font-bold text-slate-700">{s.fullName}</td>
+                <td className={`p-4 font-bold ${isRisk ? 'text-rose-700' : 'text-slate-700'}`}>
+                  {s.fullName}
+                  {isRisk ? ' (борг)' : ''}
+                </td>
                 <td className="p-4 text-slate-500 text-sm font-medium">{s.groupName}</td>
-                <td className="p-4 text-right font-black text-indigo-600 text-lg">{s.averageScore}</td>
+                <td className="p-4 text-slate-500 text-sm font-medium">{s.formOfStudy === 'BUDGET' ? 'Бюджет' : s.formOfStudy === 'CONTRACT' ? 'Контракт' : '-'}</td>
+                <td className="p-4 text-slate-500 text-sm font-medium">{s.facultyName || '-'}</td>
+                <td className={`p-4 text-right font-black text-lg ${isRisk ? 'text-rose-600' : 'text-indigo-600'}`}>
+                  {Number(s.averageScore || 0).toFixed(1)}
+                </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
         {list.length === 0 && !loading && (
@@ -337,7 +448,6 @@ const Ranking = () => {
   );
 };
 
-// --- ГОЛОВНИЙ APP ---
 export default function App() {
   const [studentId, setStudentId] = useState(localStorage.getItem('studentId'));
 
@@ -351,14 +461,17 @@ export default function App() {
     localStorage.removeItem('studentId');
   };
 
+  const handleStudentChange = (id) => {
+    setStudentId(String(id));
+    localStorage.setItem('studentId', String(id));
+  };
+
   return (
     <Router>
       <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col md:flex-row">
         
-        {/* НАВІГАЦІЯ */}
         {studentId && (
           <>
-            {/* Desktop Sidebar */}
             <nav className="hidden md:flex fixed w-20 h-full bg-slate-900 flex-col items-center py-10 gap-8 z-50 shadow-2xl">
               <div className="p-3 bg-indigo-500 rounded-xl text-white shadow-lg mb-4">
                 <GraduationCap size={28} />
@@ -374,7 +487,6 @@ export default function App() {
               </button>
             </nav>
 
-            {/* Mobile Bottom Bar */}
             <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around py-3 z-50 px-6 safe-area-bottom">
               <Link to="/dashboard" className="text-slate-400 hover:text-indigo-600"><LayoutDashboard size={24} /></Link>
               <div className="relative -top-6 bg-indigo-600 p-4 rounded-full text-white shadow-lg border-4 border-slate-50">
@@ -386,12 +498,11 @@ export default function App() {
           </>
         )}
 
-        {/* ОСНОВНИЙ КОНТЕНТ */}
         <main className={`flex-1 p-6 md:p-12 max-w-[1600px] mx-auto pb-24 md:pb-12 ${studentId ? 'md:ml-20' : ''}`}>
           <Routes>
             <Route path="/login" element={!studentId ? <Login onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
             
-            <Route path="/dashboard" element={studentId ? <Dashboard studentId={studentId} /> : <Navigate to="/login" />} />
+            <Route path="/dashboard" element={studentId ? <Dashboard studentId={studentId} onSelectStudent={handleStudentChange} /> : <Navigate to="/login" />} />
             <Route path="/ranking" element={studentId ? <Ranking /> : <Navigate to="/login" />} />
             
             <Route path="*" element={<Navigate to="/login" />} />

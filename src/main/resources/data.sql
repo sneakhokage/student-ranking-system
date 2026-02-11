@@ -18,7 +18,6 @@ INSERT INTO specialty (id, code, name, department_id) VALUES (4, '111', 'Мат�
 INSERT INTO specialty (id, code, name, department_id) VALUES (5, '014.04', 'Середня освіта (Математика)', 6);
 INSERT INTO specialty (id, code, name, department_id) VALUES (6, '014.09', 'Середня освіта (Інформатика)', 6);
 
--- Groups 6 спеціальностей × 4 групи = 24 групи
 INSERT INTO groups (id, name, year_of_study, specialty_id) VALUES (1, 'ІПЗ-31', 3, 1);
 INSERT INTO groups (id, name, year_of_study, specialty_id) VALUES (2, 'ІПЗ-32', 3, 1);
 INSERT INTO groups (id, name, year_of_study, specialty_id) VALUES (3, 'ІПЗ-33', 3, 1);
@@ -44,11 +43,9 @@ INSERT INTO groups (id, name, year_of_study, specialty_id) VALUES (22, 'СОІ-3
 INSERT INTO groups (id, name, year_of_study, specialty_id) VALUES (23, 'СОІ-33', 3, 6);
 INSERT INTO groups (id, name, year_of_study, specialty_id) VALUES (24, 'СОІ-34', 3, 6);
 
--- Semesters
 INSERT INTO semester (id, name) VALUES ('SEM1', 'Перший семестр');
 INSERT INTO semester (id, name) VALUES ('SEM2', 'Другий семестр');
 
--- Subjects 
 INSERT INTO subjects (id, name, ects, category) VALUES (1, 'Математичний аналіз', 6, 'обовʼязкова');
 INSERT INTO subjects (id, name, ects, category) VALUES (2, 'Лінійна алгебра та аналітична геометрія', 5, 'обовʼязкова');
 INSERT INTO subjects (id, name, ects, category) VALUES (3, 'Дискретна математика', 5, 'обовʼязкова');
@@ -60,7 +57,6 @@ INSERT INTO subjects (id, name, ects, category) VALUES (8, 'Компʼютерн
 INSERT INTO subjects (id, name, ects, category) VALUES (9, 'Веб-технології', 4, 'вибіркова');
 INSERT INTO subjects (id, name, ects, category) VALUES (10, 'Теорія ймовірностей та математична статистика', 5, 'обовʼязкова');
 
--- Students 24 групи × 30 = 720 студентів
 INSERT INTO students (id, full_name, form_of_study, status, group_id) VALUES (1, 'Кравчук Андрій', 'BUDGET', 'ACTIVE', 1);
 INSERT INTO students (id, full_name, form_of_study, status, group_id) VALUES (2, 'Коваль Вікторія', 'BUDGET', 'ACTIVE', 1);
 INSERT INTO students (id, full_name, form_of_study, status, group_id) VALUES (3, 'Шевченко Сергій', 'BUDGET', 'ACTIVE', 1);
@@ -782,7 +778,6 @@ INSERT INTO students (id, full_name, form_of_study, status, group_id) VALUES (71
 INSERT INTO students (id, full_name, form_of_study, status, group_id) VALUES (719, 'Бондар Мирослав', 'BUDGET', 'ACTIVE', 24);
 INSERT INTO students (id, full_name, form_of_study, status, group_id) VALUES (720, 'Дячук Юрій', 'BUDGET', 'ACTIVE', 24);
 
--- Grades + Attendance (2 семестри × усі предмети)
 INSERT INTO grades (id, student_id, subject_id, semester_id, score, attempt, date_entered) VALUES (1, 1, 1, 'SEM1', 65, 1, '2025-11-24');
 INSERT INTO attendance (id, student_id, subject_id, semester_id, percentage) VALUES (1, 1, 1, 'SEM1', 64);
 INSERT INTO grades (id, student_id, subject_id, semester_id, score, attempt, date_entered) VALUES (2, 1, 2, 'SEM1', 96, 1, '2025-12-13');

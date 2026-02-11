@@ -18,15 +18,39 @@ const fetchJson = async (url, options) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const fetchTopStudents = async (semesterId = DEFAULT_SEMESTER, limit = 10) => {
-  const cacheKey = `${RANKING_CACHE_PREFIX}${semesterId}_${limit}`;
-  const params = new URLSearchParams({ semesterId, limit: String(limit) });
+export const fetchTopStudents = async (options = {}) => {
+  const {
+    semesterId = DEFAULT_SEMESTER,
+    scope = "STREAM",
+    facultyId,
+    formOfStudy,
+    debtFilter = "ALL",
+    sortBy = "PERFORMANCE",
+    direction = "DESC",
+    limit = 1000,
+  } = options;
+
+  const cacheKey = `${RANKING_CACHE_PREFIX}${semesterId}_${scope}_${facultyId || "all"}_${formOfStudy || "all"}_${debtFilter}_${sortBy}_${direction}_${limit}`;
+  const params = new URLSearchParams({
+    semesterId,
+    scope,
+    debtFilter,
+    sortBy,
+    direction,
+    limit: String(limit),
+  });
+  if (facultyId != null && facultyId !== "") {
+    params.set("facultyId", String(facultyId));
+  }
+  if (formOfStudy) {
+    params.set("formOfStudy", formOfStudy);
+  }
 
   try {
     let lastError = null;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const data = await fetchJson(`/api/ranking/top?${params.toString()}`);
+        const data = await fetchJson(`/api/ranking/list?${params.toString()}`);
         localStorage.setItem(cacheKey, JSON.stringify(data));
         return data;
       } catch (error) {
@@ -43,10 +67,49 @@ export const fetchTopStudents = async (semesterId = DEFAULT_SEMESTER, limit = 10
   }
 };
 
+export const fetchFaculties = async () => {
+  try {
+    return await fetchJson("/api/faculties");
+  } catch (error) {
+    return [];
+  }
+};
+
+export const fetchSemesters = async () => {
+  try {
+    const page = await fetchJson("/api/semesters?size=100&sort=id,desc");
+    return page?.content || [];
+  } catch (error) {
+    return [];
+  }
+};
+
+export const fetchStudentsList = async (options = {}) => {
+  const { groupPrefix } = options;
+  try {
+    const page = await fetchJson("/api/students?size=2000&sort=fullName,asc");
+    const rows = page?.content || [];
+    if (!groupPrefix) {
+      return rows;
+    }
+    return rows.filter((s) => (s.groupName || "").startsWith(groupPrefix));
+  } catch (error) {
+    return [];
+  }
+};
+
+export const fetchClassification = async (semesterId = DEFAULT_SEMESTER) => {
+  try {
+    return await fetchJson(`/api/analytics/classification?semesterId=${semesterId}`);
+  } catch (error) {
+    return { students: [] };
+  }
+};
+
 export const fetchStudentDashboard = async (studentId, semesterId = DEFAULT_SEMESTER) => {
   try {
     const id = String(studentId);
-    const [student, weighted, risk, trend, comparison, gradesPage, subjectsPage, classification] = await Promise.all([
+    const [student, weighted, risk, trend, comparison, gradesPage, subjectsPage, classification, streamRanking] = await Promise.all([
       fetchJson(`/api/students/${id}`),
       fetchJson(`/api/analytics/weighted-gpa?studentId=${id}&semesterId=${semesterId}`),
       fetchJson(`/api/analytics/risk?studentId=${id}&semesterId=${semesterId}`),
@@ -55,6 +118,7 @@ export const fetchStudentDashboard = async (studentId, semesterId = DEFAULT_SEME
       fetchJson(`/api/grades?studentId=${id}&semesterId=${semesterId}&size=200`),
       fetchJson(`/api/subjects?size=500`),
       fetchJson(`/api/analytics/classification?semesterId=${semesterId}`),
+      fetchJson(`/api/ranking/list?semesterId=${semesterId}&scope=STREAM&sortBy=PERFORMANCE&direction=DESC&limit=5000`),
     ]);
 
     const subjectMap = new Map((subjectsPage?.content || []).map((s) => [s.id, s]));
@@ -95,9 +159,11 @@ export const fetchStudentDashboard = async (studentId, semesterId = DEFAULT_SEME
       gpa: round2(p.averageScore),
     }));
 
-    const ranked = (classification?.students || []).map((s, idx) => ({ ...s, rank: idx + 1 }));
+    const ranked = (streamRanking || []).map((s, idx) => ({ ...s, rank: idx + 1 }));
     const currentRank = ranked.find((s) => String(s.studentId) === id);
-    const cluster = currentRank?.cluster || "MIDDLE";
+    const clusterRows = (classification?.students || []);
+    const clusterRow = clusterRows.find((s) => String(s.studentId) === id);
+    const cluster = clusterRow?.cluster || "MIDDLE";
     const debtCount = toNumber(risk?.debtCount);
 
     return {
@@ -106,7 +172,7 @@ export const fetchStudentDashboard = async (studentId, semesterId = DEFAULT_SEME
       gpa: round2(comparison?.studentAverage),
       ranking: {
         stream: currentRank?.rank || 0,
-        total: toNumber(classification?.totalStudents),
+        total: ranked.length,
       },
       credits,
       weightedAvg: round2(weighted?.weightedGpa),

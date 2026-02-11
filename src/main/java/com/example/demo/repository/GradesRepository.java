@@ -4,6 +4,7 @@ import com.example.demo.model.Grades;
 import com.example.demo.repository.projection.AttendanceGradePairProjection;
 import com.example.demo.repository.projection.LatestGradeWithEctsProjection;
 import com.example.demo.repository.projection.RankingRowProjection;
+import com.example.demo.repository.projection.RankingDetailsProjection;
 import com.example.demo.repository.projection.SemesterAverageProjection;
 import com.example.demo.repository.projection.StudentAverageProjection;
 import com.example.demo.repository.projection.StudentLatestScoreProjection;
@@ -13,6 +14,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.repository.query.Param;
+import com.example.demo.model.Students;
 
 @Repository
 public interface GradesRepository extends JpaRepository<Grades, Long> {
@@ -129,6 +131,40 @@ public interface GradesRepository extends JpaRepository<Grades, Long> {
     Page<RankingRowProjection> findTopRankingBySemester(
             @Param("semesterId") String semesterId,
             Pageable pageable
+    );
+
+    @Query("""
+            SELECT s.id AS studentId,
+                   s.fullName AS fullName,
+                   COALESCE(grp.name, 'No Group') AS groupName,
+                   AVG(g.score) AS averageScore,
+                   SUM(CASE WHEN g.score < 50 THEN 1 ELSE 0 END) AS debtCount,
+                   s.formOfStudy AS formOfStudy,
+                   fac.id AS facultyId,
+                   fac.name AS facultyName
+            FROM Grades g
+            JOIN g.student s
+            LEFT JOIN s.group grp
+            LEFT JOIN grp.specialty sp
+            LEFT JOIN sp.department dep
+            LEFT JOIN dep.faculty fac
+            WHERE g.semester.id = :semesterId
+              AND (:facultyId IS NULL OR fac.id = :facultyId)
+              AND (:formOfStudy IS NULL OR s.formOfStudy = :formOfStudy)
+              AND (:groupPrefix IS NULL OR grp.name LIKE CONCAT(:groupPrefix, '%'))
+              AND g.attempt = (
+                SELECT MAX(g2.attempt) FROM Grades g2
+                WHERE g2.student.id = s.id
+                  AND g2.subject.id = g.subject.id
+                  AND g2.semester.id = :semesterId
+              )
+            GROUP BY s.id, s.fullName, grp.name, s.formOfStudy, fac.id, fac.name
+            """)
+    java.util.List<RankingDetailsProjection> findRankingRows(
+            @Param("semesterId") String semesterId,
+            @Param("facultyId") Long facultyId,
+            @Param("formOfStudy") Students.FormOfStudy formOfStudy,
+            @Param("groupPrefix") String groupPrefix
     );
 
     @Query(value = """
