@@ -144,9 +144,20 @@ const Dashboard = ({ studentId }) => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (studentId) {
-      setData(fetchStudentDashboard(studentId));
+      setData(null);
+      fetchStudentDashboard(studentId).then((response) => {
+        if (!cancelled) {
+          setData(response);
+        }
+      });
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [studentId]);
 
   // Фіксовані кольори для світлої теми
