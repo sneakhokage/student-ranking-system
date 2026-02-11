@@ -5,6 +5,8 @@ import com.example.demo.repository.projection.AttendanceGradePairProjection;
 import com.example.demo.repository.projection.LatestGradeWithEctsProjection;
 import com.example.demo.repository.projection.RankingRowProjection;
 import com.example.demo.repository.projection.SemesterAverageProjection;
+import com.example.demo.repository.projection.StudentAverageProjection;
+import com.example.demo.repository.projection.StudentLatestScoreProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -191,4 +193,34 @@ public interface GradesRepository extends JpaRepository<Grades, Long> {
             @Param("studentId") Long studentId,
             @Param("semesterId") String semesterId
     );
+
+    @Query("""
+            SELECT g.student.id AS studentId,
+                   g.student.fullName AS fullName,
+                   AVG(g.score) AS averageScore
+            FROM Grades g
+            WHERE g.semester.id = :semesterId
+              AND g.attempt = (
+                SELECT MAX(g2.attempt) FROM Grades g2
+                WHERE g2.student.id = g.student.id
+                  AND g2.subject.id = g.subject.id
+                  AND g2.semester.id = :semesterId
+              )
+            GROUP BY g.student.id, g.student.fullName
+            ORDER BY AVG(g.score) DESC
+            """)
+    java.util.List<StudentAverageProjection> findStudentAveragesLatestBySemester(@Param("semesterId") String semesterId);
+
+    @Query("""
+            SELECT g.student.id AS studentId, g.score AS score
+            FROM Grades g
+            WHERE g.semester.id = :semesterId
+              AND g.attempt = (
+                SELECT MAX(g2.attempt) FROM Grades g2
+                WHERE g2.student.id = g.student.id
+                  AND g2.subject.id = g.subject.id
+                  AND g2.semester.id = :semesterId
+              )
+            """)
+    java.util.List<StudentLatestScoreProjection> findStudentLatestScoresBySemester(@Param("semesterId") String semesterId);
 }

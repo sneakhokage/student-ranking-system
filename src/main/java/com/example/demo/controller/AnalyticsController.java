@@ -2,10 +2,15 @@ package com.example.demo.controller;
 
 import com.example.demo.dto.CorrelationDTO;
 import com.example.demo.dto.RiskStatsDTO;
+import com.example.demo.dto.StudentClusterSummaryDTO;
 import com.example.demo.dto.TrendAnalysisDTO;
+import com.example.demo.dto.WhatIfRequestDTO;
+import com.example.demo.dto.WhatIfResultDTO;
 import com.example.demo.dto.WeightedGpaDTO;
 import com.example.demo.service.AnalyticsService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,5 +52,17 @@ public class AnalyticsController {
             @RequestParam(defaultValue = "SEM1") String semesterId
     ) {
         return analyticsService.calculateAttendancePerformanceCorrelation(studentId, semesterId);
+    }
+
+    @PostMapping("/what-if")
+    public WhatIfResultDTO calculateWhatIf(@RequestBody WhatIfRequestDTO request) {
+        return analyticsService.calculateWhatIf(request);
+    }
+
+    @GetMapping("/classification")
+    public StudentClusterSummaryDTO classifyStudents(
+            @RequestParam(defaultValue = "SEM1") String semesterId
+    ) {
+        return analyticsService.classifyStudents(semesterId);
     }
 }
